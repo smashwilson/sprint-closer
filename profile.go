@@ -24,6 +24,7 @@ func LoadProfile(path string) (*Profile, error) {
 
 		return nil, err
 	}
+	defer inf.Close()
 
 	p := &Profile{}
 	err = json.NewDecoder(inf).Decode(p)
