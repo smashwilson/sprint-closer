@@ -312,21 +312,10 @@ func (c Connection) MoveList(listID string, toBoardID string, position int) erro
 
 // AddList creates a new list on the specified board at the given position.
 func (c Connection) AddList(name, boardID, position string) error {
-	u := c.url([]string{"lists"}, nil)
+	u := c.url([]string{"boards", boardID, "lists"}, map[string]string{
+		"name": name,
+		"pos":  position,
+	})
 
-	var params struct {
-		Name     string `json:"name"`
-		BoardID  string `json:"idBoard"`
-		Position string `json:"position"`
-	}
-
-	params.Name = name
-	params.BoardID = boardID
-	if position != "" {
-		params.Position = position
-	} else {
-		params.Position = "top"
-	}
-
-	return c.post(u, &params, nil)
+	return c.post(u, nil, nil)
 }
