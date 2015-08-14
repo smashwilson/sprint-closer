@@ -87,6 +87,19 @@ func run(c *cli.Context) {
 		}
 	}
 
+	log.WithField("member count", len(org.MemberIDs)).Info("Granted access to this organization.")
+
+	autoListIDs, err := conn.GetListIDs(archiveBoardID)
+	handleErr(err)
+
+	for _, listID := range autoListIDs {
+		log.WithField("list id", listID).Debug("Deleting list")
+		err = conn.DeleteList(listID)
+		handleErr(err)
+	}
+
+	log.Info("Deleted pre-existing lists.")
+
 	err = conn.MoveList(doneList.ID, archiveBoardID, 1)
 	handleErr(err)
 

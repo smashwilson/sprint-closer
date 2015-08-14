@@ -124,6 +124,16 @@ func (c Connection) put(url string, payload, response interface{}) error {
 	return c.extract(resp, response)
 }
 
+func (c Connection) delete(url string) error {
+	req, err := http.NewRequest("DELETE", url, nil)
+	if err != nil {
+		return err
+	}
+
+	_, err = http.DefaultClient.Do(req)
+	return err
+}
+
 // CreateBoard creates a new Trello board.
 func (c Connection) CreateBoard(name string) (string, error) {
 	u := c.url([]string{"boards"}, nil)
@@ -221,6 +231,36 @@ func (c Connection) FindBoard(name string) (string, error) {
 	}
 
 	return "", fmt.Errorf("Unable to find a board with the name [%s].", name)
+}
+
+// GetListIDs returns an array of IDs of the lists on an existing board.
+func (c Connection) GetListIDs(boardID string) ([]string, error) {
+	u := c.url([]string{"boards", boardID, "lists"}, nil)
+
+	var respBody []struct {
+		ID string `json:"id"`
+	}
+
+	err := c.get(u, &respBody)
+	if err != nil {
+		return nil, err
+	}
+
+	ids := make([]string, 0, len(respBody))
+	for _, each := range respBody {
+		ids = append(ids, each.ID)
+	}
+
+	return ids, nil
+}
+
+// DeleteList deletes a list, or as close to it as Trello lets you.
+func (c Connection) DeleteList(listID string) error {
+	u := c.url([]string{"lists", listID, "closed"}, map[string]string{
+		"value": "true",
+	})
+
+	return c.put(u, nil, nil)
 }
 
 // FindList locates a list on a board by name.
