@@ -19,11 +19,17 @@ type Connection struct {
 	profile Profile
 }
 
+// Org contains a little information about a Trello organization.
+type Org struct {
+	ID        string
+	MemberIDs []string
+}
+
 // List captures information about a Trello List.
 type List struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Position int    `json:"pos"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Index int    `json:"-"`
 }
 
 func (c Connection) url(parts []string, query map[string]string) string {
@@ -119,7 +125,7 @@ func (c Connection) put(url string, payload, response interface{}) error {
 }
 
 // CreateBoard creates a new Trello board.
-func (c Connection) CreateBoard(name string, sourceBoardID string) error {
+func (c Connection) CreateBoard(name string) (string, error) {
 	u := c.url([]string{"boards"}, nil)
 
 	reqBody := map[string]string{
@@ -128,12 +134,63 @@ func (c Connection) CreateBoard(name string, sourceBoardID string) error {
 		"prefs_permissonLevel": "org",
 	}
 
-	if sourceBoardID != "" {
-		reqBody["idBoardSource"] = sourceBoardID
-		reqBody["keepFromSource"] = "memberships"
+	var resp struct {
+		ID string `json:"id"`
 	}
 
-	return c.post(u, reqBody, nil)
+	err := c.post(u, reqBody, &resp)
+	return resp.ID, err
+}
+
+// FindMyUserID returns the user ID associated with the token we're using.
+func (c Connection) FindMyUserID() (string, error) {
+	u := c.url([]string{"members", "me"}, nil)
+
+	var respBody struct {
+		ID string `json:"id"`
+	}
+
+	err := c.get(u, &respBody)
+	return respBody.ID, err
+}
+
+// FindOrg looks up the ID and members of the configured organization.
+func (c Connection) FindOrg() (*Org, error) {
+	u := c.url([]string{"organizations", c.profile.Organization}, map[string]string{
+		"members": "all",
+	})
+
+	var respBody struct {
+		ID      string `json:"id"`
+		Members []struct {
+			ID       string `json:"id"`
+			Username string `json:"username"`
+		} `json:"members"`
+	}
+
+	err := c.get(u, &respBody)
+	if err != nil {
+		return nil, err
+	}
+
+	memberIDs := make([]string, 0, len(respBody.Members))
+	for _, member := range respBody.Members {
+		memberIDs = append(memberIDs, member.ID)
+	}
+
+	return &Org{
+		ID:        respBody.ID,
+		MemberIDs: memberIDs,
+	}, err
+}
+
+// AddMember adds all members of the named organization to a board.
+func (c Connection) AddMember(boardID string, memberID string) error {
+	u := c.url([]string{"boards", boardID, "members", memberID}, map[string]string{
+		"type": "normal",
+	})
+
+	return c.put(u, nil, nil)
 }
 
 // FindBoard discovers the ID of an existing board by name.
@@ -177,11 +234,13 @@ func (c Connection) FindList(name string, boardID string) (*List, error) {
 		return nil, err
 	}
 
-	for _, list := range listResults {
+	for i, list := range listResults {
+		list.Index = i
+
 		log.WithFields(log.Fields{
-			"name": list.Name,
-			"id":   list.ID,
-			"pos":  list.Position,
+			"name":  list.Name,
+			"id":    list.ID,
+			"index": list.Index,
 		}).Debug("List")
 
 		if list.Name == name {
@@ -212,7 +271,7 @@ func (c Connection) MoveList(listID string, toBoardID string, position int) erro
 }
 
 // AddList creates a new list on the specified board at the given position.
-func (c Connection) AddList(name string, boardID string, position int) error {
+func (c Connection) AddList(name, boardID, position string) error {
 	u := c.url([]string{"lists"}, nil)
 
 	var params struct {
@@ -223,8 +282,8 @@ func (c Connection) AddList(name string, boardID string, position int) error {
 
 	params.Name = name
 	params.BoardID = boardID
-	if position != 0 {
-		params.Position = strconv.Itoa(position)
+	if position != "" {
+		params.Position = position
 	} else {
 		params.Position = "top"
 	}

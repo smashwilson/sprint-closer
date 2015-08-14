@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -56,11 +57,21 @@ func run(c *cli.Context) {
 
 	log.WithField("list id", doneList.ID).Debug("Done list located.")
 
-	archiveBoardName := newBoardName()
-	err = conn.CreateBoard(archiveBoardName, currentSprintID)
+	org, err := conn.FindOrg()
 	handleErr(err)
 
-	archiveBoardID, err := conn.FindBoard(archiveBoardName)
+	log.WithFields(log.Fields{
+		"org id":       org.ID,
+		"member count": len(org.MemberIDs),
+	}).Debug("Organization ID located.")
+
+	myID, err := conn.FindMyUserID()
+	handleErr(err)
+
+	log.WithField("user id", myID).Debug("My user ID located.")
+
+	archiveBoardName := newBoardName()
+	archiveBoardID, err := conn.CreateBoard(archiveBoardName)
 	handleErr(err)
 
 	log.WithFields(log.Fields{
@@ -68,12 +79,19 @@ func run(c *cli.Context) {
 		"board name": archiveBoardName,
 	}).Info("Created archive board.")
 
+	for _, memberID := range org.MemberIDs {
+		if memberID != myID {
+			log.WithField("member ID", memberID).Debug("Granting access")
+			err = conn.AddMember(archiveBoardID, memberID)
+			handleErr(err)
+		}
+	}
+
 	err = conn.MoveList(doneList.ID, archiveBoardID, 1)
 	handleErr(err)
 
 	log.Info("Moved Done list to the archive board.")
-
-	err = conn.AddList("Done", currentSprintID, doneList.Position)
+	err = conn.AddList("Done", currentSprintID, strconv.Itoa(doneList.Index))
 	handleErr(err)
 
 	log.Info("Created Done list on the Current Sprint board.")
