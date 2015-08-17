@@ -15,7 +15,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "sprint-closer"
 	app.Usage = "Close the current DevEx sprint"
-	app.Version = "0.0.0"
+	app.Version = "1.0.0"
 
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
