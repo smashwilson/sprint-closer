@@ -120,7 +120,7 @@ func handleErr(err error) {
 func newBoardName() string {
 	n := time.Now()
 
-	daysUntilFriday := time.Friday - n.Weekday()
+	daysUntilFriday := (time.Friday - n.Weekday() - 7) % 7
 	friday := n.AddDate(0, 0, int(daysUntilFriday))
 
 	return fmt.Sprintf("DevEx Sprint %s", friday.Format("2006-01-02"))
