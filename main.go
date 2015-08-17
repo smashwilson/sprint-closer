@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 	"time"
 
@@ -104,7 +103,7 @@ func run(c *cli.Context) {
 	handleErr(err)
 
 	log.Info("Moved Done list to the archive board.")
-	err = conn.AddList("Done", currentSprintID, strconv.Itoa(doneList.Index))
+	err = conn.AddList("Done", currentSprintID, doneList.Position)
 	handleErr(err)
 
 	log.Info("Created Done list on the Current Sprint board.")

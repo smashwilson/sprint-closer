@@ -27,9 +27,9 @@ type Org struct {
 
 // List captures information about a Trello List.
 type List struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Index int    `json:"-"`
+	ID       string  `json:"id"`
+	Name     string  `json:"name"`
+	Position float64 `json:"pos"`
 }
 
 func (c Connection) url(parts []string, query map[string]string) string {
@@ -274,13 +274,11 @@ func (c Connection) FindList(name string, boardID string) (*List, error) {
 		return nil, err
 	}
 
-	for i, list := range listResults {
-		list.Index = i
-
+	for _, list := range listResults {
 		log.WithFields(log.Fields{
-			"name":  list.Name,
-			"id":    list.ID,
-			"index": list.Index,
+			"name":     list.Name,
+			"id":       list.ID,
+			"position": list.Position,
 		}).Debug("List")
 
 		if list.Name == name {
@@ -311,10 +309,10 @@ func (c Connection) MoveList(listID string, toBoardID string, position int) erro
 }
 
 // AddList creates a new list on the specified board at the given position.
-func (c Connection) AddList(name, boardID, position string) error {
+func (c Connection) AddList(name, boardID string, position float64) error {
 	u := c.url([]string{"boards", boardID, "lists"}, map[string]string{
 		"name": name,
-		"pos":  position,
+		"pos":  strconv.FormatFloat(position, 'f', 1, 64),
 	})
 
 	return c.post(u, nil, nil)
